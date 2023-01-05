@@ -1,0 +1,129 @@
+service: handon-fx
+frameworkVersion: '3'
+
+custom:
+  accountTableName: 'fxAccounts-${sls:stage}'
+  tradeTableName: 'fxTrades-${sls:stage}'
+  tradeTableAccountStateIndex: '${self:custom.tradeTableName}-accountState-index'
+  chatTableName: 'fxChat-${sls:stage}'
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!venv/**'
+    - '!.git/**'
+
+useDotenv: true
+
+provider:
+  name: aws
+  # runtime: python3.9
+  stage: dev
+  ecr:
+    images:
+      latest:
+        path: .
+        platform: linux/amd64
+  region: ap-northeast-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+          Resource:
+            - Fn::GetAtt: [ AccountTable, Arn ]
+            - Fn::GetAtt: [ ChatTable, Arn ]
+            - Fn::GetAtt: [ TradeTable, Arn ]
+            - Fn::Join: ['/', ["Fn::GetAtt": [ TradeTable, Arn ], 'index', '*']]
+  environment:
+    REGION: ${aws:region}
+    ACCOUNT_TABLE: ${self:custom.accountTableName}
+    TRADE_TABLE: ${self:custom.tradeTableName}
+    TRADE_TABLE_ACCOUNT_STATE_INDEX: ${self:custom.tradeTableAccountStateIndex}
+    CHAT_TABLE: ${self:custom.chatTableName}
+    MASTODON_SERVER: ${env:MASTODON_SERVER}
+    ACCESS_TOKEN: ${env:ACCESS_TOKEN}
+
+
+
+functions:
+  notify:
+    #handler: lambda_handler.notification
+    image:
+      name: latest
+      command: ["lambda_handler.push_notification"]
+    events:
+      - httpApi:
+          path: /push
+          method: post
+  test:
+    image:
+      name: latest
+      command: ["lambda_handler.test"]
+    events:
+        - httpApi:
+            path: /test
+            method: get
+
+plugins:
+  - serverless-python-requirements
+
+resources:
+  Resources:
+    AccountTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: account_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: account_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.accountTableName}
+    TradeTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: trade_id
+            AttributeType: S
+          - AttributeName: account_id
+            AttributeType: S
+          - AttributeName: state
+            AttributeType: S
+        KeySchema:
+          - AttributeName: trade_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tradeTableName}
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:custom.tradeTableAccountStateIndex}
+            KeySchema:
+              - AttributeName: account_id
+                KeyType: HASH
+              - AttributeName: state
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+    ChatTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: notification_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: notification_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.chatTableName}
+
+
