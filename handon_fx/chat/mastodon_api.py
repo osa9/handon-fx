@@ -33,7 +33,6 @@ def process_mention(mastodon, notification_id, force_process=False):
         return
 
     info = get_notification(mastodon, notification_id)
-    # print(info)
     try:
         bot = ChatBot(HandonFxAPI())
         res = bot.action(info["user_id"], info["content"])

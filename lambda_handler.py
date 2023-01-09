@@ -26,5 +26,5 @@ def push_notification(event, _context):
 def test(event, context):
     return {
         "statusCode": 200,
-        "body": json.dumps({"event": json.dumps(event)}),
+        "body": json.dumps({"event": "test"}),
     }

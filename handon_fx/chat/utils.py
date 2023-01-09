@@ -15,6 +15,7 @@ SUMMARY_TEXTS = [
     "余力",
 ]
 RATE_TEXTS = ["レート", "Rate", "rate", "価格", "ドル", "為替"]
+RANKING_TEXTS = ["ランキング", "ranking", "Ranking", "Rank", "rank"]
 
 
 def _find(keywords, text):

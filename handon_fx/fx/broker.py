@@ -229,8 +229,9 @@ class HandonBroker(_Broker):
 
     def summary(self):
         return {
-            "cash": self._cash,
             "equity": self.equity,
+            "cash": self._cash,
+            "margin_available": self.margin_available,
             "profit": self.equity - self._cash,
             "lots_avaitable": int(
                 self.margin_available
@@ -245,4 +246,5 @@ class HandonBroker(_Broker):
             / self.position.size
             if self.position.size
             else 0,
+            "rate": self._data.Close[-1],
         }

@@ -5,6 +5,7 @@ from .utils import (
     UNPOSITION_TEXTS,
     HELP_TEXTS,
     SUMMARY_TEXTS,
+    RANKING_TEXTS,
     _find_n,
     RATE_TEXTS,
     yen,
@@ -23,6 +24,7 @@ class ChatBot:
         help = _find(HELP_TEXTS, text)
         summary = _find(SUMMARY_TEXTS, text)
         rate = _find(RATE_TEXTS, text)
+        ranking = _find(RANKING_TEXTS, text)
 
         ops = sum([buy, sell, unposition, help, summary, rate])
         if ops != 1:
@@ -55,25 +57,28 @@ class ChatBot:
             return {"operation": "help"}
         elif summary:
             return {"operation": "summary"}
+        elif ranking:
+            return {"operation": "ranking"}
         elif rate:
             return {"operation": "rate"}
 
     def _summary_message(self, summary):
         message = "現在のポジションは以下の通りです。\n"
-        # {'cash': 1000000, 'equity': 1000000.0, 'profit': 0.0, 'lots_avaitable': 0, 'position_size': 150000, 'position_avg_price': 132.122}
+
         position_text = "なし"
         if summary["position_size"] > 0:
             position_text = f"買い {summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
         elif summary["position_size"] < 0:
-            position_text = f"売り {summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
+            position_text = f"売り {-summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
 
         message += f"評価額: {yen(summary['equity'])}\n"
-        message += f"現金: {yen(summary['cash'])}"
-        message += f"(余力 {int(summary['lots_avaitable'])}ロット)\n"
+        message += f"余力: {yen(summary['margin_available'])}"
+        message += f"({int(summary['lots_avaitable'])}ロット)\n"
         message += (
             f"損益: {'+' if int(summary['profit'])>=0 else ''}{yen(summary['profit'])}\n"
         )
         message += f"ポジション: {position_text}\n"
+        message += f"現在のレート: {summary['rate']}円\n"
         return message
 
     def _operation_message(self, side, res):
@@ -135,14 +140,13 @@ class ChatBot:
             fx.start()
             res = fx.close_position(account_id)
             return self._operation_message("unposition", res)
-            pass
         if ops["operation"] == "help":
             return "自分で考えろ"
         if ops["operation"] == "summary":
             fx = HandonFxAPI()
             fx.start()
-            summaru = fx.summary(account_id)
-            return self._summary_message(summaru)
+            summary = fx.summary(account_id)
+            return self._summary_message(summary)
         if ops["operation"] == "rate":
             fx = HandonFxAPI()
             fx.start()
