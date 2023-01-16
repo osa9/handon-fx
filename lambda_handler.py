@@ -7,7 +7,6 @@ from handon_fx.chat.mastodon_api import handle_push_notification
 
 def push_notification(event, _context):
     try:
-        print(event["body"])
         handle_push_notification(
             base64.b64decode(event["body"]),
             event["headers"].get("encryption"),

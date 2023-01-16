@@ -9,8 +9,12 @@ from .utils import (
     _find_n,
     RATE_TEXTS,
     yen,
+    DEBT_TEXT,
+    CLEAR_DEBT_TEXTS,
+    _find_yen,
 )
 from handon_fx.fx import HandonFxAPI
+from ..fx.exceptions import NotEnoughCash
 
 
 class ChatBot:
@@ -25,14 +29,37 @@ class ChatBot:
         summary = _find(SUMMARY_TEXTS, text)
         rate = _find(RATE_TEXTS, text)
         ranking = _find(RANKING_TEXTS, text)
+        debt = _find(DEBT_TEXT, text)
+        clear_debt = _find(CLEAR_DEBT_TEXTS, text)
 
-        ops = sum([buy, sell, unposition, help, summary, rate])
+        ops = sum(
+            [buy, sell, unposition, help, summary, rate, debt, clear_debt, ranking]
+        )
         if ops != 1:
             n = _find_n(text)
             if ops == 0 and len(n) == 1:
                 return {"operation": "buy", "size": n[0]}
             return {"operation": "unknown"}
 
+        if debt:
+            debt_sizes = _find_yen(text)
+            if len(debt_sizes) != 1:
+                return {
+                    "operation": "notion",
+                    "message": "借りたい金額を1つだけ円で指定してください。(例: 100万円借りるなら「100万円借して下さいお願いします」)",
+                }
+            return {"operation": "debt", "size": debt_sizes[0]}
+        elif clear_debt:
+            debt_sizes = _find_yen(text)
+            if len(debt_sizes) > 1:
+                return {
+                    "operation": "notion",
+                    "message": "返済額を1つだけ円で指定してください。指定なしの場合は現金から返せるだけ返します。(例: 100万円返済するなら「100万円返します」)",
+                }
+            return {
+                "operation": "clear_debt",
+                "size": debt_sizes[0] if len(debt_sizes) == 1 else None,
+            }
         if buy or sell:
             n = _find_n(text)
             if len(n) > 1:
@@ -71,7 +98,10 @@ class ChatBot:
         elif summary["position_size"] < 0:
             position_text = f"売り {-summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
 
-        message += f"評価額: {yen(summary['equity'])}\n"
+        message += f"評価額: {yen(summary['equity'])}"
+        if summary["debt"] > 0:
+            message += f" (借金: {yen(summary['debt'])})"
+        message += f"\n"
         message += f"余力: {yen(summary['margin_available'])}"
         message += f"({int(summary['lots_avaitable'])}ロット)\n"
         message += (
@@ -152,3 +182,46 @@ class ChatBot:
             fx.start()
             rate = fx.rate()
             return f"1ドル{rate}円です。\nhttps://finance.yahoo.co.jp/quote/USDJPY=FX"
+        if ops["operation"] == "ranking":
+            return self.ranking()
+        if ops["operation"] == "debt":
+            return self.debt(account_id, ops["size"])
+        if ops["operation"] == "clear_debt":
+            return self.pay_debt(account_id, ops["size"])
+
+    def ranking(self):
+        fx = HandonFxAPI()
+        fx.start()
+        ranking = fx.ranking()
+        message = "現在の資産額ランキングは以下の通りです。\n"
+        for i, r in enumerate(ranking)[:10]:
+            message += f"{i+1}位: {r['account_id']} {r['equity']}円\n"
+        return message
+
+    def debt(self, account_id: str, size):
+        fx = HandonFxAPI()
+        fx.start()
+        try:
+            if size == 0:
+                return "0円は借りられません。"
+            res = fx.request_debt(account_id, size)
+            return (
+                f"どんどん金融をご利用頂きありがとうございます。{res['size']}円の融資について承りました。利率は1日1%です。ご利用は計画的に。"
+            )
+        except NotEnoughCash as e:
+            return e.message
+
+    def pay_debt(self, account_id: str, size):
+        fx = HandonFxAPI()
+        fx.start()
+        try:
+            if size == 0:
+                return "0円は返済できません。"
+            res = fx.pay_debt(account_id, size)
+            if res["size"] == 0:
+                return "返済できませんでした。"
+            return (
+                f"どんどん金融をご利用頂きありがとうございます。{res['size']}円の返済について承りました。またのご利用をお待ちしております。"
+            )
+        except NotEnoughCash as e:
+            return e.message

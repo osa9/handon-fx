@@ -1,5 +1,8 @@
 from typing import Optional
+import datetime
+import pytz
 
+from .exceptions import NotEnoughCash
 from .rate import get_current_rate
 from backtesting._util import _Data as Data
 from .broker import HandonBroker
@@ -61,10 +64,15 @@ class HandonFxAPI:
     def rate(self):
         return self.data.Close[-1]
 
+    def _get_summary(self, account: AccountModel, broker: HandonBroker):
+        summary = broker.summary()
+        summary["debt"] = account.current_debt
+        return summary
+
     def summary(self, account_id: str):
         account = self.get_account_info(account_id)
         broker = self._create_broker(account.account_id, account.cash)
-        return broker.summary()
+        return self._get_summary(account, broker)
 
     def _update_trade(self, broker, account: AccountModel, exit_cash: float):
         updated_trades = list(
@@ -100,7 +108,7 @@ class HandonFxAPI:
         strategy = HandonStrategy(data=self.data, broker=broker, params={})
         strategy.init()
 
-        before_summary = broker.summary()
+        before_summary = self._get_summary(account, broker)
 
         if side == "buy":
             if size is None:
@@ -114,7 +122,7 @@ class HandonFxAPI:
                 strategy.sell(size=size)
         broker.next()
 
-        after_summary = broker.summary()
+        after_summary = self._get_summary(account, broker)
         self._update_trade(broker, account, after_summary["cash"])
 
         return {
@@ -126,9 +134,9 @@ class HandonFxAPI:
     def close_position(self, account_id: str):
         account = self.get_account_info(account_id)
         broker = self._create_broker(account.account_id, account.cash)
-        before_summary = broker.summary()
+        before_summary = self._get_summary(account, broker)
         broker.close_trades(self.data.Close[-1])
-        after_summary = broker.summary()
+        after_summary = self._get_summary(account, broker)
         self._update_trade(broker, account, after_summary["cash"])
 
         return {
@@ -154,8 +162,70 @@ class HandonFxAPI:
             ranking.append(
                 {
                     "account_id": account.account_id,
-                    "equity": broker.equity,
+                    "equity": broker.equity - account.current_debt,
                 }
             )
 
         return sorted(ranking, key=lambda x: x["equity"], reverse=True)
+
+    def request_debt(self, account_id: str, size: int):
+        account = self.get_account_info(account_id)
+
+        if size > account.debt_limit:
+            raise NotEnoughCash(f"今月の借り入れ金額はあと{account.debt_limit}円までです")
+
+        # 複利計算
+        new_cash = account.cash + size
+        new_debt_size = account.current_debt + size
+        new_month_debt = account.this_month_debt + size
+
+        account.update(
+            actions=[
+                AccountModel.cash.set(new_cash),
+                AccountModel.debt.set(new_debt_size),
+                AccountModel.month_debt.set(new_month_debt),
+                AccountModel.debt_date.set(datetime.datetime.utcnow()),
+            ]
+        )
+
+        return {
+            "cash": new_cash,
+            "debt": new_debt_size,
+            "size": size,
+            "month_limit": account.debt_limit,
+        }
+
+    def pay_debt(self, account_id: str, size: Optional[int] = None):
+        account = self.get_account_info(account_id)
+        broker = self._create_broker(account.account_id, account.cash)
+
+        if size is None or size > account.current_debt:
+            size = account.current_debt
+
+        if size > broker.margin_available:
+            raise NotEnoughCash(f"余力が{size - account.cash}円足りません")
+        if size > account.cash:
+            raise NotEnoughCash(f"現金が{size - account.cash}円足りません。ポジションを決済してください")
+
+        new_cash = account.cash - size
+        new_debt_size = account.current_debt - size
+        new_month_debt = max(account.this_month_debt - size, 0)
+        # for debug
+        if new_debt_size == 0:
+            new_month_debt = 0
+
+        account.update(
+            actions=[
+                AccountModel.cash.set(new_cash),
+                AccountModel.debt.set(new_debt_size),
+                AccountModel.month_debt.set(new_month_debt),
+                AccountModel.debt_date.set(datetime.datetime.utcnow()),
+            ]
+        )
+
+        return {
+            "cash": new_cash,
+            "debt": new_debt_size,
+            "size": size,
+            "month_limit": account.debt_limit,
+        }

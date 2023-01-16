@@ -529,7 +529,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "pytz"
-version = "2022.7"
+version = "2022.7.1"
 description = "World timezone definitions, modern and historical"
 category = "main"
 optional = false
@@ -753,7 +753,7 @@ requests = ">=2.26"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "49f8fa8ec6e7ff04024980e94f1ceebd8237a426de315061345281038eaef24e"
+content-hash = "77135585caeb192224331cac5cb4ace92b07a462b38a92aec7500d81d35c2bca"
 
 [metadata.files]
 anyio = []

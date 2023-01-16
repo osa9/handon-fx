@@ -16,6 +16,8 @@ SUMMARY_TEXTS = [
 ]
 RATE_TEXTS = ["レート", "Rate", "rate", "価格", "ドル", "為替"]
 RANKING_TEXTS = ["ランキング", "ranking", "Ranking", "Rank", "rank"]
+DEBT_TEXT = ["貸し", "借し"]
+CLEAR_DEBT_TEXTS = ["返済", "返し", "返す"]
 
 
 def _find(keywords, text):
@@ -23,6 +25,15 @@ def _find(keywords, text):
         if t in text:
             return True
     return False
+
+
+def _find_yen(text):
+    numbers = re.findall(r"\d+(?:,\d+)*(?:万|万円|円)", text)
+    res = []
+    for number_text in numbers:
+        number = int(number_text.replace(",", "").replace("万", "0000").replace("円", ""))
+        res += [number]
+    return res
 
 
 def _find_n(text):
