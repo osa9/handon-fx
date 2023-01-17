@@ -16,6 +16,7 @@ SUMMARY_TEXTS = [
 ]
 RATE_TEXTS = ["レート", "Rate", "rate", "価格", "ドル", "為替"]
 RANKING_TEXTS = ["ランキング", "ranking", "Ranking", "Rank", "rank"]
+WORST_RANKING_TEXTS = ["逆", "ワースト"]
 DEBT_TEXT = ["貸し", "借し"]
 CLEAR_DEBT_TEXTS = ["返済", "返し", "返す"]
 

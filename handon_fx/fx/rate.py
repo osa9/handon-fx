@@ -28,8 +28,6 @@ def get_current_rate():
     )
 
 
-def get_history_rate():
+def get_history_rate(start, end):
     usd_jpy = yf.Ticker("USDJPY=X")
-    return usd_jpy.history(
-        period="1d", interval="1m", start="2022-12-20", end="2022-12-21"
-    )
+    return usd_jpy.history(period="1d", interval="1m", start=start, end=end)

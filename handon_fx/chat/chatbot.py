@@ -12,6 +12,7 @@ from .utils import (
     DEBT_TEXT,
     CLEAR_DEBT_TEXTS,
     _find_yen,
+    WORST_RANKING_TEXTS,
 )
 from handon_fx.fx import HandonFxAPI
 from ..fx.exceptions import NotEnoughCash
@@ -85,7 +86,8 @@ class ChatBot:
         elif summary:
             return {"operation": "summary"}
         elif ranking:
-            return {"operation": "ranking"}
+            worst = _find(WORST_RANKING_TEXTS, text)
+            return {"operation": "ranking", "worst": worst}
         elif rate:
             return {"operation": "rate"}
 
@@ -93,10 +95,15 @@ class ChatBot:
         message = "現在のポジションは以下の通りです。\n"
 
         position_text = "なし"
+        avg_price = "{:.3f}".format(summary["position_avg_price"])
         if summary["position_size"] > 0:
-            position_text = f"買い {summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
+            position_text = (
+                f"買い {summary['position_size']//10000}ロット (平均建玉価格{avg_price}円)"
+            )
         elif summary["position_size"] < 0:
-            position_text = f"売り {-summary['position_size']//10000}ロット (平均建玉価格{summary['position_avg_price']}円)"
+            position_text = (
+                f"売り {-summary['position_size']//10000}ロット (平均建玉価格{avg_price}円)"
+            )
 
         message += f"評価額: {yen(summary['equity'])}"
         if summary["debt"] > 0:
@@ -183,19 +190,25 @@ class ChatBot:
             rate = fx.rate()
             return f"1ドル{rate}円です。\nhttps://finance.yahoo.co.jp/quote/USDJPY=FX"
         if ops["operation"] == "ranking":
-            return self.ranking()
+            return self.ranking(ops["worst"])
         if ops["operation"] == "debt":
             return self.debt(account_id, ops["size"])
         if ops["operation"] == "clear_debt":
             return self.pay_debt(account_id, ops["size"])
 
-    def ranking(self):
+    def ranking(self, worst=False):
         fx = HandonFxAPI()
         fx.start()
         ranking = fx.ranking()
-        message = "現在の資産額ランキングは以下の通りです。\n"
-        for i, r in enumerate(ranking)[:10]:
-            message += f"{i+1}位: {r['account_id']} {r['equity']}円\n"
+
+        if worst:
+            message = "現在の資産額ワーストランキングは以下の通りです。\n"
+            ranking = ranking[::-1]
+        else:
+            message = "現在の資産額ランキングは以下の通りです。\n"
+
+        for i, r in enumerate(ranking[:10]):
+            message += f"{i+1}位: {r['account_id']} {int(r['equity'])}円\n"
         return message
 
     def debt(self, account_id: str, size):

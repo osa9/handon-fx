@@ -23,4 +23,8 @@ def jst_delta_days(utc_date: datetime.datetime, utc_now: datetime.datetime = Non
     jst_utc_date = utc_date.astimezone(jst)
     if jst_utc_date > jst_now:
         return 0
-    return (jst_now - jst_utc_date).days
+    # カレンダー上での日数を計算
+    return (
+        jst_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        - jst_utc_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    ).days
