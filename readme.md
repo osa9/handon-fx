@@ -21,6 +21,13 @@ TODO:
 python -m unittest discover tests
 ```
 
+Or,
+```
+python -m unittest tests/handon_fx/chat/test_chatbot.py
+```
+
+etc.
+
 #### Docker
 
 TODO.
