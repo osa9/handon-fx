@@ -7,6 +7,7 @@ from .utils import (
     SUMMARY_TEXTS,
     RANKING_TEXTS,
     _find_n,
+    _find_obj,
     RATE_TEXTS,
     yen,
     DEBT_TEXT,
@@ -38,9 +39,15 @@ class ChatBot:
         )
         if ops != 1:
             n = _find_n(text)
-            if ops == 0 and len(n) == 1:
+            o = _find_obj(text)
+            print({"obj": o, "len": len(o) })
+            if ops == 0 and len(n) == 1 and len(o) == 0:
                 return {"operation": "buy", "size": n[0]}
-            return {"operation": "unknown"}
+            elif ops == 2 and len(n) == 1 and len(o) == 1:
+                return { "operation": "buy", "size": n[0], "pair": o[0], }
+            else:
+                print({"ops": ops, "n": n, "obj": o, "len": len(o) })
+                return {"operation": "unknown"}
 
         if debt:
             debt_sizes = _find_yen(text)
@@ -63,6 +70,7 @@ class ChatBot:
             }
         if buy or sell:
             n = _find_n(text)
+            o = _find_obj(text)
             if len(n) > 1:
                 return {
                     "operation": "notion",
@@ -76,9 +84,20 @@ class ChatBot:
                 n[0] = -n[0]
 
             if buy:
-                return {"operation": "buy", "size": n[0]}
+                if len(o) == 0:
+                    return {"operation": "buy", "size": n[0]}
+                elif len(o) == 1:
+                    return { "operation": "buy", "size": n[0], "pair": o[0], }
+                else:
+                    return { "operation": "unknown" }
             else:
-                return {"operation": "sell", "size": n[0]}
+                if len(o) == 0:
+                    return {"operation": "sell", "size": n[0]}
+                elif len(o) == 1:
+                    return { "operation": "sell", "size": n[0], "pair": o[0], }
+                else:
+                    return { "operation": "unknown" }
+
         elif unposition:
             return {"operation": "unposition"}
         elif help:
