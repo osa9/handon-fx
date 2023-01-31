@@ -14,7 +14,17 @@ SUMMARY_TEXTS = [
     "残高",
     "余力",
 ]
-RATE_TEXTS = ["レート", "Rate", "rate", "価格", "ドル", "為替"]
+RATE_TEXTS  = ["レート", "Rate", "rate", "価格", "ドル", "為替"]
+PAIRS_TEXTS = {
+        "USDJPY": ["USDJPY", "USD/JPY", "USD-JPY", "ドル円", "どるえん", "ドル", "どる", ],
+        "EURJPY": ["EURJPY", "EUR/JPY", "EUR-JPY", "ユロ円", "ユロ", "ユーロ", ],
+        "AUDJPY": ["AUDJPY", "AUD/JPY", "AUD-JPY", "オジ円", "オジ", "オージー", ],
+        "BGPJPY": ["BGPJPY", "BGP/JPY", "BGP-JPY", "ポン円", "ポン", ],
+        "EURUSD": ["EURUSD", "EUR/USD", "EUR-USD", "EURUSD", ],
+        "AUDUSD": ["AUDUSD", "AUD/USD", "AUD-USD", "AUDUSD", ],
+        "BGPUSD": ["BGPUSD", "BGP/USD", "BGP-USD", "BGPUSD", ],
+        "BTCUSD": ["BTCUSD", "BTC/USD", "BTC-USD", "ビットコイン", "ビットコ", "ビット子", ],
+}
 RANKING_TEXTS = ["ランキング", "ranking", "Ranking", "Rank", "rank"]
 WORST_RANKING_TEXTS = ["逆", "ワースト"]
 DEBT_TEXT = ["貸し", "借し"]
@@ -58,6 +68,31 @@ def _find_n(text):
             number = int(number)
         res += [number]
 
+    return res
+
+
+
+def _find_obj(text):
+    """Find the target object in the text.
+
+    Args:
+    text -- user-posted string.
+
+    Returns:
+    - [] when there is no target object.
+    - [elems] when there are target objects.
+
+    See Also:
+    - ``._find``
+    - ``._find_yen``
+    - ``._find_n``
+    """
+
+    res = []
+    for k_pr in PAIRS_TEXTS.keys():
+        if _find(PAIRS_TEXTS[k_pr], text):
+            print({"matched": k_pr , "text": text})
+            res.append(k_pr)
     return res
 
 
